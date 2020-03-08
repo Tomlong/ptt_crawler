@@ -174,7 +174,7 @@ class ListCrawler(object):
     def start_crawl(self, crawler_interval: int):
         hot_urls = self.get_hot_boards()
 
-        for url in hot_urls[10:]:
+        for url in hot_urls:
             board_name = url.split('/')[-2]
             logger.info(f"Crawl {board_name} from {self.start_time} to {self.end_time}")
             logger.info(f"Get candidate url of {board_name}")

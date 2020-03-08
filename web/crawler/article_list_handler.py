@@ -27,15 +27,5 @@ class ArticleListHandler():
             raise web.HTTPServiceUnavailable(reason="Time format is %Y-%m-%dT%H:%M:%SZ")
 
         self.crawler = ListCrawler(self.crawler_interval, self.list_collection, self.start_time, self.end_time)
-
-        # hot_urls = self.get_hot_boards()
-        # for url in hot_urls[10:]:
-        #     logger.info(f"Get candidate url from {url}")
-        #     candidate_url = self.get_candidate_url(url)
-        #     logger.info(f"Get start url")
-        #     start_url = self.get_start_url(candidate_url)
-        #     logger.info(f"Start url: {start_url}")
-        #     article_list = self.crawl_list(start_url)
-        #     logger.info(f"Get {len(article_list)} articles from {url}")
         
         return {"status": "OK"}
