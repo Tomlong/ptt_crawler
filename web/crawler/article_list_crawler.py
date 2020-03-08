@@ -12,14 +12,17 @@ logger = logging.getLogger(__name__)
 PTT_URL_PREFIX = "https://www.ptt.cc"
 HOT_BOARD_URL = "https://www.ptt.cc/bbs/hotboards.html"
 OVER_18_BOARD = "/bbs/Gossiping/index.html"
+ANNOUNCE = "公告"
+RULE = "板規"
 
 class ListCrawler(object):
     def __init__(self, crawler_interval: int, list_collection: Collection, start_time: datetime, end_time: datetime):
         """
         Arguments:
-            update_interval {int} -- [polling 間隔時間，單位秒]
-            load_map_collection {pymongo.collection.Collection} --
-            callback {function} --
+            start_time {datetime}: the start time of crawling range
+            end_time {datetime}: the end time of crawling range
+            crawler_interval {int}: stop interval (second) of crawling each board
+            list_collection {pymongo.collection.Collection} -- collection
         """
         self.list_collection = list_collection
         self.start_time = start_time
@@ -55,29 +58,49 @@ class ListCrawler(object):
             for article_soup in article_soups:
                 try:
                     article_url = article_soup.a.get('href')
-                    break
+                    return article_url
                 except: 
                     continue
         if method == "last":
+            # ignore announce and rule
             for article_soup in article_soups[::-1]:
+                title = article_soup.text.strip('\n')
+                if (ANNOUNCE in title) or (RULE in title):
+                    continue
                 try:
                     article_url = article_soup.a.get('href')
-                    break
+                    return article_url
                 except: 
                     continue
-        return article_url
+        return None
+
+    def get_first_last_time(self, article_soups):
+        first_article_url = self.get_article_url(article_soups, "first")
+        first_article_time = self.get_time_from_url(first_article_url)
+        last_article_url = self.get_article_url(article_soups, "last")
+        last_article_time = self.get_time_from_url(last_article_url)
+
+        return first_article_time, last_article_time
     
     def get_candidate_url(self, url: str):
+        # Get first and last article posttime
         res = self.session.get(url)
         soup = BeautifulSoup(res.text, "html.parser")
         article_soups = soup.find_all('div', class_="title")
         first_article_url = self.get_article_url(article_soups, "first")
-        first_article_time = self.get_time_from_url(first_article_url)
 
-        diff_time = first_article_time - self.end_time
-        diff_days = diff_time.days
-        if diff_days == 0:
-            return url
+        # first_aritcle_url None means that first page do not contain article, then start from pre_page
+        if first_article_url is None:
+            page_soup = soup.find("div", class_="btn-group btn-group-paging")
+            url = page_soup.find_all("a")[1].get('href')
+            res = self.session.get(url)
+            soup = BeautifulSoup(res.text, "html.parser")
+            article_soups = soup.find_all('div', class_="title")
+        first_article_time, last_article_time = self.get_first_last_time(article_soups)
+
+        # if end_time is between first and last article posttime, then return url
+        if (self.end_time <= last_article_time) and (self.end_time >= first_article_time):
+            return url            
 
         page_soup = soup.find("div", class_="btn-group btn-group-paging")
         pre_page_url = page_soup.find_all("a")[1].get('href')
@@ -98,7 +121,7 @@ class ListCrawler(object):
                 continue
 
             article_time = self.get_time_from_url(article_url)
-            each_diff_time = first_article_time - article_time
+            each_diff_time = last_article_time - article_time
             
             if each_diff_time.days > 0:
                 break
@@ -107,6 +130,8 @@ class ListCrawler(object):
 
         # index_num times 0.8 for estimating index
         index_num = int(index_num * .8)
+        diff_time = last_article_time - self.end_time
+        diff_days = diff_time.days
         start_index = index - (index_num * diff_days)
         board_name = url.split('/')[-2]
         return f"{PTT_URL_PREFIX}/bbs/{board_name}/index{str(start_index)}.html"
@@ -117,12 +142,8 @@ class ListCrawler(object):
             soup = BeautifulSoup(res.text, 'html.parser')
             # Get last article post time
             article_soups = soup.find_all('div', class_="title")
-            # Find existed first_article and last_article of page
-            first_article_url = self.get_article_url(article_soups, "first")
-            last_article_url = self.get_article_url(article_soups, "last")
             # Get first and last article time
-            first_article_time = self.get_time_from_url(first_article_url)
-            last_article_time = self.get_time_from_url(last_article_url)
+            first_article_time, last_article_time = self.get_first_last_time(article_soups)
 
             # end_time between this page's first and last article
             if (self.end_time <= last_article_time) and (self.end_time >= first_article_time):
@@ -132,6 +153,7 @@ class ListCrawler(object):
                 page_soup = soup.find("div", class_="btn-group btn-group-paging")
                 pre_page_url = page_soup.find_all("a")[1].get('href')
                 url = f"{PTT_URL_PREFIX}{pre_page_url}"
+            # get next-page as next url
             else:
                 page_soup = soup.find("div", class_="btn-group btn-group-paging")
                 next_page_url = page_soup.find_all("a")[2].get('href')
@@ -145,6 +167,10 @@ class ListCrawler(object):
             article_soups = soup.find_all('div', class_="title")
             # start from the newest article
             for article_soup in article_soups[::-1]:
+                # ignore announce and rule
+                title = article_soup.text.strip('\n')
+                if (ANNOUNCE in title) or (RULE in title):
+                    continue
                 try:
                     href = article_soup.a.get('href')
                     article_url = f"{PTT_URL_PREFIX}{href}"
@@ -172,6 +198,14 @@ class ListCrawler(object):
             url = f"{PTT_URL_PREFIX}{pre_page_url}"
 
     def start_crawl(self, crawler_interval: int):
+        """
+        1. Get all board url of hot board
+        2. Crawl the article urls of all hot board which posttime from start_time to end_time
+            a. Get candidate url that probably approach start url
+            b. Get exactly start url that end_time is between first article and last article posttime of the page
+            c. Crawl list and go previous page util article's posttime over start_time
+        """
+
         hot_urls = self.get_hot_boards()
 
         for url in hot_urls:
