@@ -1,0 +1,56 @@
+import os
+import aiohttp
+import logging
+import pymongo
+import argparse
+from aiohttp import web
+from web.middlewares import format_api_middleware
+from web.crawler.article_list_handler import ArticleListHandler
+
+MB = 1024**2
+middlewares = [
+    format_api_middleware,
+]
+UPDATE_INT = int(os.getenv('UPDATE_INT', 5))
+
+async def create_session(app):
+    session = aiohttp.ClientSession()
+    app["session"] = session
+
+
+async def close_session(app):
+    await app["session"].close()
+
+
+def create_app():
+    MONGO_URI = os.environ.get('MONGO_URI', "mongodb://127.0.0.1:27017")
+    DB_NAME = os.environ.get('DB_NAME', "ptt_data")
+    db_client = pymongo.MongoClient(MONGO_URI)
+    db = db_client[DB_NAME]
+
+    app = web.Application(middlewares=middlewares, client_max_size=10 * MB)
+    article_list_crawler = ArticleListHandler(
+        db = db, 
+        crawler_interval = UPDATE_INT,
+    )
+    app.router.add_route("POST", "/crawl", article_list_crawler.on_post)
+
+    app.on_startup.append(create_session)
+    app.on_cleanup.append(close_session)
+
+    return app
+
+if __name__ == "__main__":
+    logger_level = os.environ.get('LOGGER_LEVEL', 'INFO')
+    if logger_level == 'INFO':
+        logging.basicConfig(level=logging.INFO)
+    elif logger_level == 'DEBUG':
+        logging.basicConfig(level=logging.DEBUG)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", default="8000")
+    args = parser.parse_args()
+
+    app = create_app()
+    web.run_app(app, host=args.host, port=args.port)
