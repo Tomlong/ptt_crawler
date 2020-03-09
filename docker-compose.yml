@@ -1,0 +1,20 @@
+version: '2'
+services: 
+    list_crawler:
+        build:
+            context: ./
+            dockerfile: ./docker/Dockerfile
+        environment:
+            - MONGO_URI=mongodb://mongo
+            - DB_NAME=ptt_data
+            - LOGGER_LEVEL=INFO
+        ports:
+            - 19010:80
+
+    mongo:
+        image: mongo:latest
+        volumes:
+            - ./db:/data/db
+        ports:
+            - 27017:27017
+        restart: always
