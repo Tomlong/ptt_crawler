@@ -7,8 +7,6 @@ from pymongo.database import Database
 from web.crawler.article_list_crawler import ListCrawler
 
 
-logger = logging.getLogger(__name__)
-
 class ArticleListHandler():
     def __init__(self, db: Database, crawler_interval: int):
         self.start_time = datetime(2020, 3, 10, 12, 00, 00)

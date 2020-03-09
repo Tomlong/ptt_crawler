@@ -7,11 +7,12 @@ from aiohttp import web
 from web.middlewares import format_api_middleware
 from web.crawler.article_list_handler import ArticleListHandler
 
+logger = logging.getLogger(__name__)
 MB = 1024**2
 middlewares = [
     format_api_middleware,
 ]
-UPDATE_INT = int(os.getenv('UPDATE_INT', 5))
+
 
 async def create_session(app):
     session = aiohttp.ClientSession()
@@ -29,9 +30,10 @@ def create_app():
     db = db_client[DB_NAME]
 
     app = web.Application(middlewares=middlewares, client_max_size=10 * MB)
+    crawler_interval = int(os.getenv('CRAWLER_INT', 5))
     article_list_crawler = ArticleListHandler(
-        db = db, 
-        crawler_interval = UPDATE_INT,
+        db=db, 
+        crawler_interval=crawler_interval,
     )
     app.router.add_route("POST", "/crawl", article_list_crawler.on_post)
 
