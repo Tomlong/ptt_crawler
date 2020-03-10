@@ -3,13 +3,24 @@ services:
     list_crawler:
         build:
             context: ./
-            dockerfile: ./docker/Dockerfile
+            dockerfile: ./docker/list_crawler/Dockerfile
         environment:
             - MONGO_URI=mongodb://mongo
             - DB_NAME=ptt_data
             - LOGGER_LEVEL=INFO
+            - TZ=Asia/Taipei  
         ports:
             - 19010:80
+        
+    
+    article_crawler:
+        build:
+            context: ./
+            dockerfile: ./docker/article_crawler/Dockerfile
+        environment:
+            - MONGO_URI=mongodb://mongo
+            - DB_NAME=ptt_data
+            - LOGGER_LEVEL=INFO
 
     mongo:
         image: mongo:latest
