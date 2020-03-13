@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 PTT_URL_PREFIX = "https://www.ptt.cc"
 OVER_18_BOARD = "/bbs/Gossiping/index.html"
+COMMENTS_SPLIT = "※ 發信站: 批踢踢實業坊(ptt.cc)"
 
 
 class ArticleCrawler():
@@ -60,15 +61,35 @@ class ArticleCrawler():
                 time.sleep(self.crawler_each_interval)
 
             except Exception as e:
+                self.list_data_collection.find_one_and_update(
+                    {"_id": job["_id"]},
+                    {"$set": {"status": "fail"}}
+                )
                 logger.exception(e)
             if self.flag is True:
                 break
 
             time.sleep(self.crawler_interval)
 
+    def get_content(self, res):
+        """
+        1. get content part by spliting content and comments with COMMENTS_SPLIT
+        2. get last part of article-meta-value as split_value
+        3. content_soup text splited by split_value, and get index 1 of array as clean content
+        """
+        # get conntent part
+        soup = BeautifulSoup(res.text.split(COMMENTS_SPLIT)[0])
+        content_soup = soup.find("div", id="main-content")
+        # split by last article-meta-value, get content
+        split_value = content_soup.find_all(class_="article-meta-value")[-1].text
+        content = content_soup.text.split(split_value)[1].replace('\n', '')
+        return content
+
     def start_crawl(self, job):
         article_url = job["url"]
         res = self.session.get(article_url)
+        if res.status_code != 200:
+            return
         soup = BeautifulSoup(res.text, "html.parser")
 
         article_info = {}
@@ -83,11 +104,13 @@ class ArticleCrawler():
         article_info["authorName"] = author_split[1].strip(' ')
         article_info["board"] = information_soup[1].text
         article_info["title"] = information_soup[2].text
+        # get clean content
+        article_info["content"] = self.get_content(res)
 
         # get canonicalUrl
         article_info["canonicalUrl"] = article_url
         # get published timestamp from article_url
-        article_info["time"] = datetime.fromtimestamp(int(article_url.split('/')[-1].split('.')[1]))
+        article_info["published_time"] = datetime.fromtimestamp(int(article_url.split('/')[-1].split('.')[1]))
 
         # get all comments
         comments = []
