@@ -10,3 +10,6 @@ COPY /crawler/article_crawler /app/article_crawler
 WORKDIR /app/article_crawler
 
 CMD ["/app/article_crawler/entrypoint.sh"]
+
+HEALTHCHECK --interval=5s --timeout=3s \
+    CMD /app/article_crawler/healthcheck.sh

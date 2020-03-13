@@ -12,3 +12,6 @@ WORKDIR /app/list_crawler
 EXPOSE 80
 
 CMD ["/app/list_crawler/entrypoint.sh"]
+
+HEALTHCHECK --interval=5s --timeout=3s \
+    CMD /app/list_crawler/healthcheck.sh

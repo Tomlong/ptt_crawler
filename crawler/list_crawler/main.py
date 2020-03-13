@@ -6,6 +6,7 @@ import argparse
 from aiohttp import web
 from middlewares import format_api_middleware
 from article_list_handler import ArticleListHandler
+from health_check_handler import HealthCheckHandler
 
 logger = logging.getLogger(__name__)
 MB = 1024**2
@@ -35,7 +36,9 @@ def create_app():
         db=db, 
         crawler_interval=crawler_interval,
     )
+    health_check_handler = HealthCheckHandler()
     app.router.add_route("POST", "/crawl", article_list_crawler.on_post)
+    app.router.add_route("GET", "/health_check", health_check_handler.on_get)
 
     app.on_startup.append(create_session)
     app.on_cleanup.append(close_session)
