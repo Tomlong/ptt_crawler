@@ -20,6 +20,7 @@ services:
             - MONGO_URI=mongodb://mongo
             - DB_NAME=ptt_data
             - LOGGER_LEVEL=INFO
+            - TZ=Asia/Taipei  
 
     mongo:
         image: mongo:latest

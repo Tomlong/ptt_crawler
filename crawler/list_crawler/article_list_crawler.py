@@ -196,7 +196,7 @@ class ListCrawler(object):
                             {
                                 "url": article_url,
                                 "board_name": board_name,
-                                "post_time": article_time,
+                                "published_time": article_time,
                                 "status": "pending",
                             }
                         )
