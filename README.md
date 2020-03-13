@@ -14,6 +14,10 @@ docker-compose -f docker-compose.yml build
 ```
 docker-compose -f docker-compose.yml up -d
 ```
+3. Stop
+```
+docker-compose down
+```
 
 ## 部署多機注意事項
 1. 將 docker-compose 內的 mongo service 拿掉
