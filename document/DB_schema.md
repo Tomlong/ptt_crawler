@@ -7,10 +7,10 @@ unique key: article_id
 ```json
 {
     "_id": article_id,
-    "url" : 文章 url (string),
-    "board_name" : 看板名稱 (string),
-    "published_time" : 貼文時間 (ISODate),
-    "status" : 爬取狀況 (string) ，分為 pending、crawling、finish、fail,
+    "url" : 文章url(string),
+    "board_name" : 看板名稱(string),
+    "published_time" : 貼文時間(ISODate),
+    "status" : 爬取狀況(string)，分為pending、crawling、finish、fail,
 }
 ```
 
